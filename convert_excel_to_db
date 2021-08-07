@@ -1,0 +1,303 @@
+# -*- coding: utf-8 -*-
+#coding:utf8
+import io
+import sys
+from flask import Flask, jsonify, request, abort, make_response, render_template, url_for, redirect, flash
+import os
+import json
+from flask_sqlalchemy import SQLAlchemy
+import requests
+import time
+import string
+import csv
+import random
+import re
+import datetime
+import asyncio
+import pandas as pd
+from openpyxl import Workbook
+from instascrape import *
+from flask_cors import CORS, cross_origin
+from flask_sqlalchemy import SQLAlchemy
+import sqlalchemy
+from sqlalchemy import desc
+from sqlalchemy import create_engine
+from .models import setup_db, MasterDb, db, connection, engine
+
+
+allowed_extensions = ['xlsx', 'xlsm', 'xlsb', 'xls']
+
+def randomSecondLessThan(maxSecond):
+    secondslist = []
+    for i in range(1,maxSecond+1):
+        print(i)
+        secondslist.append(i)
+    randomSecond = round(random.choice(secondslist))
+    return int(randomSecond)
+
+
+"""
+def func(string):
+    something = ""
+    for i in range(len(string)):
+        if i < len(string) - 1:
+            if string[i] + string[i+1] != "__":
+                something += string[i]
+        else:
+            something += string[i]
+    return something
+print(func("abuse__value here__").replace(" ", "__"));
+
+"""
+
+def create_app(test_config=None):
+
+    app = Flask(__name__,instance_relative_config=True)
+    setup_db(app)
+
+    def filterVar(string):
+        string = string.replace(' ','_')
+        string = string.replace('-','_')
+        return string
+    def betterVar(string):
+        # as not found any filter for create table I did it myself
+        string = "%s" %string
+        string = string.replace("--", "") if "--" in string else string
+        string = string.replace("'", "") if "'" in string else string
+        string = string.replace('"', '') if '"' in string else string
+        string = string.replace(';', '') if ';' in string else string
+        string = string.replace(chr(92), '') if (chr(92) in string) else string
+        string = string.replace('tableoid', '_' + 'tableoid') if 'tableoid' in string else string
+        string = string.replace('xmin', '_' + 'xmin') if 'xmin' in string else string
+        string = string.replace('cmin', '_' + 'cmin') if 'cmin' in string else string
+        string = string.replace('xmax', '_' + 'xmax') if 'xmax' in string else string
+        string = string.replace('cmax', '_' + 'cmax') if 'cmax' in string else string
+        string = string.replace('ctid', '_' + 'ctid') if 'ctid' in string else string
+        return string
+    # scroll Down function
+    @app.route("/seeworking_thenread")
+    def read():
+        db.drop_all()
+        db.create_all()
+        excelname = "inventory.xlsx"
+        splitedName = excelname.split(".")
+        if len(splitedName) <= 1 or splitedName[len(splitedName) - 1] not in allowed_extensions:
+            return "invalid file"
+        tablename = filterVar(betterVar(splitedName[0]))
+        # for test Delete the table created ontime
+        lastRecoredId = MasterDb.query.order_by(desc('id')).first()
+        table_extension = "sheet" + str(lastRecoredId.id) + "_" if lastRecoredId else "sheet1_"
+        tablename = table_extension + tablename
+        dropTableStatment = sqlalchemy.text('''DROP TABLE IF EXISTS %s;'''%tablename)
+        droptable = connection.execute(dropTableStatment)
+        # here we read file, missing two steps needed 1 upload form, 2 read all sheets
+        filename = os.path.join(app.root_path, r'%s'%excelname)
+        df = pd.read_excel(filename, sheet_name="Spare SFPs")
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        dataframe = pd.DataFrame(df)
+        # list contains all columns name
+        column_names = [filterVar(betterVar(column)) for column in dataframe.columns]
+        # create table statment
+        queryString = "CREATE TABLE %s (id serial PRIMARY KEY ,"%tablename
+        for column in range(len(column_names)):
+            columnName = column_names[column]
+            if column == len(column_names) -1:
+                queryString += " %s VARCHAR (255) NULL " %columnName
+            else:
+                queryString += " %s VARCHAR (255) NULL, " %columnName
+        queryString += ");"
+        # insert statment loop over dataframe and insert values
+        #load data into a DataFrame object:
+        tupleRow = tuple(column_names)
+        tuplelist = []
+        lastindex = len(column_names) - 1
+        columnsTitles = str(tupleRow).replace("'", "")
+        insertQuery = "INSERT INTO " + tablename + " " + columnsTitles +  " VALUES "
+        for i, row in df.iterrows():
+            loopindex = 0
+            insertQuery += "("
+            for j, column in row.iteritems():
+                if lastindex != loopindex:
+                    insertQuery += "'%s', "
+                else:
+                    insertQuery += "'%s'"
+                tuplelist.append(column)
+                loopindex += 1
+            insertQuery += "), "
+
+        insertQuery = insertQuery[0:len(insertQuery)-2]
+        insertQuery += ";"
+        tupleTuple = tuple(tuplelist)
+        insertQuery = insertQuery%tupleTuple
+
+        insertDataQuery = sqlalchemy.text(insertQuery)
+
+        saveTableQuery = sqlalchemy.text(
+            '''INSERT INTO master_db (tablename, table_extension)
+            VALUES (:tablename, :table_extension)
+            RETURNING id '''
+        )
+
+        # test query
+
+        testQuery = sqlalchemy.text("""SELECT * FROM %s;"""%tablename)
+        # begain session
+        querySession = connection.begin()
+        createTableStatment = sqlalchemy.text(queryString)
+        newTable = connection.execute(createTableStatment)
+        fillTable = connection.execute(insertDataQuery)
+        testTable = connection.execute(testQuery)
+        thedata = testTable.fetchall()
+        return str(thedata)
+        saveResult = connection.execute(saveTableQuery, tablename=tablename, table_extension=table_extension)
+        tableId = saveResult.fetchone()[0]
+        querySession.commit()
+        querySession.close()
+        return "we have first Function Done %s" %tableId
+
+    @app.route("/api")
+    def api():
+        items = TrueLocal.query.distinct(TrueLocal.url)
+
+        allData = [item.format() for item in items]
+        x = 0
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet["A1"] = "Title"
+        sheet["B1"] = "Mobile"
+        sheet["C1"] = "Address"
+        sheet["D1"] = "review"
+        sheet["E1"] = "url"
+        sheetIndexer = 2
+        for i in allData:
+            sheetIndexer += 1
+            sheetIndexerA = "A" + str(sheetIndexer)
+            sheet[sheetIndexerA] = i['title']
+            sheetIndexerB = "B" + str(sheetIndexer)
+            sheet[sheetIndexerB] = i['mobile']
+            sheetIndexerC = "C" + str(sheetIndexer)
+            sheet[sheetIndexerC] = i['address']
+            sheetIndexerD = "D" + str(sheetIndexer)
+            sheet[sheetIndexerD] = i['review']
+            sheetIndexerE = "E" + str(sheetIndexer)
+            sheet[sheetIndexerE] = i['url']
+        workbook.save(filename="truelocal.xlsx")
+        return jsonify(allData)
+    @app.route("/test")
+    def testfunc():
+        # Create Table Step Using List coming from excelsheet with columns names
+        tablename = "dyanmictable"
+        tablename = betterVar(tablename)
+        db.drop_all()
+        db.create_all()
+        dropTableStatment = sqlalchemy.text('''DROP TABLE IF EXISTS %s;'''%tablename)
+        droptable = connection.execute(dropTableStatment)
+        column_names = ["something", "notkown", "hello", "btngan", "hry"]
+        columnsString = "CREATE TABLE %s (id serial PRIMARY KEY,"%tablename
+        for column in range(len(column_names)):
+            columnName = column_names[column]
+            if column == len(column_names) -1:
+                columnsString += " %s VARCHAR (255) NULL" %betterVar(columnName)
+            else:
+                columnsString += " %s VARCHAR (255) NULL, " %betterVar(columnName)
+        saveTableQuery = sqlalchemy.text(
+            '''INSERT INTO master_db (tablename)
+            VALUES (:tablename), (:table_extension)
+            RETURNING id '''
+        )
+        columnsString += ");"
+        ## return columnsString
+        createTableStatment = sqlalchemy.text(columnsString)
+        querySession = connection.begin()
+        newTable = connection.execute(createTableStatment)
+        saveResult = connection.execute(saveTableQuery, tablename=tablename, table_extension=table_extension)
+        tableId = saveResult.fetchone()[0]
+        querySession.commit()
+        return "now we have dynamic table and store it ID: %s"%tableId
+
+    @app.route("/table/<string:tablename>")
+    def createTable(tablename):
+        # Genrate Table extension (Handle multible Sheets tables with same name without effect html)
+        db.drop_all()
+        db.create_all()
+        lastRecoredId = MasterDb.query.order_by(desc('id')).first()
+        table_extension = "sheet" + str(lastRecoredId.id) + "_" if lastRecoredId else "sheet1_"
+        # Create the new table with name and columns got from excelsheet
+        tablename = betterVar(tablename)
+        tablename = table_extension + tablename
+        column1 = "id"
+        column2 = betterVar("cmin")
+        column3 = betterVar("value")
+
+        createTableStatment = sqlalchemy.text(
+            '''CREATE TABLE %s (
+                %s serial PRIMARY KEY,
+                %s VARCHAR (255) NOT NULL,
+                %s DATE NOT NULL DEFAULT CURRENT_DATE
+                );'''%(tablename, column1, column2, column3)
+        )
+        querySession = connection.begin()
+        newTable = connection.execute(createTableStatment)
+        # store the new created table name and extension in the masterDb and return the id then updated html
+        saveTableQuery = sqlalchemy.text(
+            '''INSERT INTO master_db (tablename)
+            VALUES (:tablename), (:table_extension)
+            RETURNING id '''
+        )
+        result = connection.execute(saveTableQuery, tablename=tablename, table_extension=table_extension)
+        tableId = result.fetchone()[0]
+        dropTableStatment = sqlalchemy.text('''DROP TABLE %s;'''%tablename)
+        result1 = connection.execute(dropTableStatment)
+        querySession.commit()
+        return "Table Created ID: %s , Table name: %s" %(tableId, tablename)
+
+    @app.route("/donotknowwhy")
+    def ok():
+        createTableStatment1 = sqlalchemy.text(
+            '''SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'%s' ''' %tablename
+        )
+
+        result = connection.execute(createTableStatment1)
+        columnsList = [column.column_name for column in result.fetchall()]
+        return str(columnsList)
+    # route to delete the table using by get name, extension from MasterDb using table id
+    @app.route("/table/<int:table_id>/delete")
+    def removeTable(table_id):
+        table_id = betterVar(table_id)
+        table_to_delete = MasterDb.query.filter_by(id=table_id).one_or_none()
+        if table_to_delete == None:
+            return "table not found"
+        table_to_delete.delete()
+        return table_to_delete.tablename
+
+
+    # route to insert rows into table
+    @app.route("/table/<int:table_id>/insert")
+    def insertIntoTable(table_id):
+        table_id = betterVar(table_id)
+        table_to_delete = MasterDb.query.filter_by(id=table_id).one_or_none()
+        if table_to_delete == None:
+            return "table not found"
+        rows = [{'name': 'ahmed', 'value': 'teacher'},{'name': 'mohamed', 'value': 'acc'},{'name': 'mahmoud', 'value': 'dev'}]
+        for row in rows:
+            newRow = MasterDb(name=row.name, value=row.value)
+
+        return table_to_delete.tablename
+
+
+    # route that will store the new table created
+    @app.route("/db/<string:tbname>", methods=["GET"])
+    def dynamic_db(tbname):
+        createTableStatment = sqlalchemy.text(
+            '''INSERT INTO master_db (tablename)
+            VALUES (:tablename)
+            RETURNING id '''
+        )
+        querySession = connection.begin()
+        result = connection.execute(createTableStatment, tablename=tbname)
+        # The id! reduce 544454454544544 tables sent to js
+        tableId = result.fetchone()[0]
+        querySession.commit()
+        return str(tableId)
+
+    return app
