@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html>
+{% include "partials/head.html" %}
+
+<body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+        {% include "partials/header.html" %}
+        {% include "partials/sidebar.html" %}
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <div class="card card-danger" style="height:90%;">
+                                <div class="card-header">
+                                    <h3 class="card-title">Delete Handler</h3>
+                                </div>
+                                <div class="card-body">
+                                  {% with errors = get_flashed_messages(category_filter=["delete"]) %}
+                                    {% if errors %}
+                                      <div class="alert alert-{{errors[0]}} alert-dismissible fade show">
+                                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                        <span> {{errors[1]}}</span>
+                                      </div>
+                                    {% endif %}
+                                  {% endwith %}
+                                  <div>
+                                    <!-- start Delete-->
+                                    {% if allfiles %}
+                                    <!-- delete file section -->
+                                    <!-- Delete File must be form -->
+
+                                  <form method="post" action="{{url_for('delete_excelfile')}}">
+                                    <label class="mr-sm-2 my-3">Excel Files</label>
+                                    <div class="form-row align-items-center">
+                                         <div class="col-auto my-1 col-8">
+                                           <select class="form-control" name="deleted_file" id="delete_file_select" required="required">
+                                             <option value="none">Select a table</option>
+                                             {% for excelfile in allfiles %}
+                                               <option value="{{excelfile.id}}" title="System Path: {{excelfile.path}}">{{excelfile.name}}</option>
+                                             {% endfor %}
+                                           </select>
+                                         </div>
+                                        <div class="col-auto my-1 col-3">
+                                           <button style="width:100%;" type="submit" class="btn btn-danger" id="delete_file_btn" title="Tip: Delete a file Will delete all the sheets too">Delete</button>
+                                        </div>
+                                    </div>
+                                  </form>
+
+
+
+                                    <!-- delete Sheet section -->
+                                      <form method="post" action="{{url_for('delete_worksheet')}}">
+                                      <label class="mr-sm-2 my-3">Excel Worksheets</label>
+                                      <div class="form-row align-items-center">
+                                           <div class="col-auto my-1 col-8">
+                                             <select class="form-control" name="worksheet_delete" id="delete_worksheet_select" required="required">
+                                               <option value="none">Select a worksheet</option>
+                                               {% if allsheets %}
+                                                 {% for worksheet in allsheets %}
+                                                   <option value="{{ worksheet.id }}" title="System Path: {{ worksheet.path }}">{{ worksheet.name }} ({{ worksheet.filename }})</option>
+                                                 {% endfor %}
+                                               {% endif %}
+                                             </select>
+                                           </div>
+                                          <div class="col-auto my-1 col-3">
+                                             <button style="width:100%;" class="btn btn-danger" type="submit" id="delete_worksheet_btn" title="delete a single worksheet">Delete</button>
+                                          </div>
+                                      </div>
+                                    </form>
+
+
+                                    <!-- end not empty part -->
+                                    {% else %}
+
+                                      <label class="mr-sm-2">Excel Files</label>
+                                      <div class="form-row align-items-center">
+                                         <div class="col-auto my-1 col-8">
+                                           <select class="form-control" id="delete_file_select">
+                                             <option value="none">Select a table</option>
+                                           </select>
+                                         </div>
+                                      </div>
+                                      <div class="alert alert-secondary">
+                                        <span>There are no Excel files to delete.</span>
+                                      </div>
+
+
+                                    {% endif %}
+                                    <!-- end -->
+                                  </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-7">
+                            <div class="card card-success" style="height:90%;">
+                                <div class="card-header">
+                                    <h3 class="card-title">Excel File Manager</h3>
+                                </div>
+                                <div class="card-body">
+
+                                    <!-- AJAX Errors -->
+                                    <div id="ajax_error_label" style="display:none;" class="alert alert-danger alert-dismissible fade show">
+                                      <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                      <span id="error_message"></span>
+                                    </div>
+
+                                    {% with messages = get_flashed_messages(category_filter=["upload"]) %}
+                                      {% if messages %}
+                                        <div class="alert alert-info alert-dismissible fade show">
+                                          <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                          <strong>{{messages[0]}}: </strong><br /><br /><span> {{messages[1]}}</span>
+                                        </div>
+                                      {% endif %}
+                                    {% endwith %}
+                                    <div class="text-right mb-1">
+                                        <button class="btn btn-warning" onclick="$('#modal-upload-excel').modal('show')">Upload Excel</button>
+                                    </div>
+                                    <div class="form-group">
+                                      {% if allfiles  %}
+
+
+                                      <label class="mr-sm-2">Excel Files</label>
+                                      <div class="form-row align-items-center">
+                                         <div class="col-auto my-1 col-8">
+                                           <select class="form-control" id="file_select">
+                                             <option value="none">Select Excel File</option>
+                                             {% for excelfile in allfiles %}
+                                               <option value="{{excelfile.id}}" title="System Path: {{excelfile.path}}">{{excelfile.name}}</option>
+                                             {% endfor %}
+                                           </select>
+                                         </div>
+                                        <div class="col-auto my-1 col-3">
+                                           <button style="width:100%;" class="btn btn-success" id="select_excelfile_btn" title="select sheet and click here to show all worksheets in the next Selectbox">Select File</button>
+                                        </div>
+                                      </div>
+
+                                      <label class="mr-sm-2 my-3">WorkSheets</label>
+                                      <div class="form-row align-items-center">
+                                           <div class="col-auto my-1 col-8">
+                                             <select class="form-control" id="worksheet_select">
+                                               <option value="none">Select WorkSheet</option>
+                                             </select>
+                                           </div>
+                                          <div class="col-auto my-1 col-3">
+                                             <button style="width:100%;" class="btn btn-primary" id="render_worksheet_btn" title="Select the worksheet to be displayed below">View file</button>
+                                          </div>
+                                      </div>
+
+                                      {% else %}
+                                        <select class="form-control" id="ajax_time">
+                                          <option value="none">Select Excel File</option>
+                                        </select>
+                                        <div class="alert alert-secondary">
+                                          <span>0 Excel Files Found Please Upload a file.</span>
+                                        </div>
+                                      {% endif %}
+                                    </div>
+                                    <!-- Leave it maybe need
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-striped" id="pci_table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 10%;">ID</th>
+                                                    <th style="width: 30%;">IP</th>
+                                                    <th style="width: 20%;">Status</th>
+                                                    <th style="width: 40%;">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for db_row in db_rows %}
+                                                <tr>
+                                                    <td class="pci-id">{{ db_row[0] }}</td>
+                                                    <td class="pci-ip">{{ db_row[1] }}</td>
+                                                    <td class="pci-status">{{ db_row[2] }}</td>
+                                                    <td class="pci-actions">
+                                                        <button class="btn btn-warning btn-sm" onclick="openEditModal('{{ db_row[0] }}', '{{ db_row[1] }}', '{{ db_row[2] }}')">edit
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm" onclick="openRemoveModal('{{ db_row[0] }}', '{{ db_row[1] }}', '{{ db_row[2] }}')">remove
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                  -->
+                                </div>
+                            </div>
+
+                        </div><!-- /.col -->
+                    </div><!-- /.row -->
+                    <div class="row mb-2">
+
+                        <div class="col-md-11" style="margin-left:auto;margin-right:auto;">
+                            <div class="card card-primary">
+                                <div class="card-header">
+                                    <h3 class="card-title">Excel Sheet Editor</h3>
+                                </div>
+                                <!-- table --->
+
+                                <div class="container-fluid">
+
+                                                <h4 class="m-3" id="sheet_id_title"></h4>
+                                                <div class="card" id="table_card_container">
+                                                    <!-- <div class="card-body" id="table_card_container">
+                                                      <!--
+                                                      <div class="table-responsive">
+                                                         <div id="users_table_wrapper" class="dataTables_wrapper dt-bootstrap4 no-footer">
+                                                            <div class="row">
+                                                               <div class="col-sm-12 col-md-6">
+                                                                  <div class="dataTables_length" id="users_table_length">
+                                                                     <label>
+                                                                        Show
+                                                                        <select name="users_table_length" aria-controls="users_table" class="custom-select custom-select-sm form-control form-control-sm">
+                                                                           <option value="10">10</option>
+                                                                           <option value="25">25</option>
+                                                                           <option value="50">50</option>
+                                                                           <option value="100">100</option>
+                                                                        </select>
+                                                                        entries
+                                                                     </label>
+                                                                  </div>
+                                                               </div>
+                                                               <div class="col-sm-12 col-md-6">
+                                                                  <div id="users_table_filter" class="dataTables_filter"><label>Search:<input type="search" class="form-control form-control-sm" placeholder="" aria-controls="users_table"></label></div>
+                                                               </div>
+                                                            </div>
+                                                            <div class="row">
+                                                               <div class="col-sm-12">
+                                                                  <table id="users_table" class="table table-bordered table-striped text-center dataTable no-footer" role="grid" aria-describedby="users_table_info">
+                                                                     <thead>
+                                                                        <tr role="row">
+                                                                           <th class="sorting_asc" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="ID: activate to sort column descending" style="width: 107.75px;">ID</th>
+                                                                           <th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending" style="width: 187.406px;">Name</th>
+                                                                           <th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending" style="width: 400.547px;">Email</th>
+                                                                           <th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Role: activate to sort column ascending" style="width: 150.438px;">Role</th>
+                                                                           <th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Actions: activate to sort column ascending" style="width: 296.859px;">Actions</th>
+                                                                        </tr>
+                                                                     </thead>
+                                                                     <tbody>
+                                                                        <tr data-id="10" role="row" class="odd">
+                                                                           <td class="user-id sorting_1">10</td>
+                                                                           <td class="user-name">shashank</td>
+                                                                           <td class="user-email">s@s.com</td>
+                                                                           <td class="user-role">Admin</td>
+                                                                           <td class="user-action">
+                                                                              <button class="btn btn-warning btn-sm" onclick="openEditUserModal('10')">edit</button>
+                                                                              <button class="btn btn-danger btn-sm" onclick="openRemoveUserModal('10')">remove</button>
+                                                                           </td>
+                                                                        </tr>
+                                                                        <tr data-id="16" role="row" class="even">
+                                                                           <td class="user-id sorting_1">16</td>
+                                                                           <td class="user-name">someone</td>
+                                                                           <td class="user-email">someone@gmail.com</td>
+                                                                           <td class="user-role">User</td>
+                                                                           <td class="user-action">
+                                                                              <button class="btn btn-warning btn-sm" onclick="openEditUserModal('16')">edit</button>
+                                                                              <button class="btn btn-danger btn-sm" onclick="openRemoveUserModal('16')">remove</button>
+                                                                           </td>
+                                                                        </tr>
+                                                                     </tbody>
+                                                                  </table>
+                                                               </div>
+                                                            </div>
+                                                            <div class="row">
+                                                               <div class="col-sm-12 col-md-5">
+                                                                  <div class="dataTables_info" id="users_table_info" role="status" aria-live="polite">Showing 1 to 2 of 2 entries</div>
+                                                               </div>
+                                                               <div class="col-sm-12 col-md-7">
+                                                                  <div class="dataTables_paginate paging_simple_numbers" id="users_table_paginate">
+                                                                     <ul class="pagination">
+                                                                        <li class="paginate_button page-item previous disabled" id="users_table_previous"><a href="#" aria-controls="users_table" data-dt-idx="0" tabindex="0" class="page-link">Previous</a></li>
+                                                                        <li class="paginate_button page-item active"><a href="#" aria-controls="users_table" data-dt-idx="1" tabindex="0" class="page-link">1</a></li>
+                                                                        <li class="paginate_button page-item next disabled" id="users_table_next"><a href="#" aria-controls="users_table" data-dt-idx="2" tabindex="0" class="page-link">Next</a></li>
+                                                                     </ul>
+                                                                  </div>
+                                                               </div>
+                                                            </div>
+                                                         </div>
+                                                      </div>
+
+                                                    </div>
+                                                  -->
+                                                </div>
+                                            </div>
+                                <!-- table end -->
+                                <!-- /.card-header -->
+                                <!-- form start -->
+
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content-header -->
+
+        </div>
+
+
+        <div class="modal fade" id="modal-edit-PCI">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Edit PCI/PII Item</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="modal-edit-ip-form">
+                        <div class="modal-body">
+                            <input type="hidden" id="modal_edit_id">
+                            <div class="form-group">
+                                <label>IP</label>
+                                <input class="form-control" id="modal_edit_ip" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <input class="form-control" id="modal_edit_status" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-warning">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- /.modal-content -->
+            </div>
+            <!-- /.modal-dialog -->
+        </div>
+        <!-- /.modal -->
+
+        <!-- toolbar Model for cells and rows action -->
+
+        <div class="modal fade" id="toolbar_model">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="model_column_title">Title</h4>
+
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                        <div class="modal-body">
+                          <div class="text-center" id="row_dimension"></div>
+
+                            <!-- Update cell part -->
+                            <label class="mr-sm-2">Edit Cell Value</label>
+                            <div class="form-row align-items-center">
+                               <div class="col-auto my-1 col-8">
+                                 <input type="text" id="py_editcell" value="" class="form-control">
+                               </div>
+                              <div class="col-auto my-1 col-3">
+                                <button style="width:100%;" type="button" class="btn btn-success" id="toolbar_submit_btn" data-dismiss="modal">Submit</button>
+                              </div>
+                            </div>
+
+                            <!-- Update cell part -->
+                            <label class="mr-sm-5 my-2">Insert Rows</label>
+                            <div class="form-row align-items-center">
+                               <div class="col-auto my-1 col-4">
+                                 <button style="width:100%;" type="button" class="btn btn-primary disabled" id="insert_row_before">Insert Row Before</button>
+                               </div>
+                              <div class="col-auto my-1 col-4">
+                                <button style="width:100%;" type="button" class="btn btn-info disabled" id="insert_row_after">Insert Row After</button>
+                              </div>
+                              <div class="col-auto my-1 col-2">
+                                <button style="width:100%;" type="button" class="btn btn-secondary" id="toggler_button" title="Click to show insert inputs"><i id="toggler_i" class="fa fa-eye" aria-hidden="true"></i></button>
+                              </div>
+                            </div>
+
+                            <div class="container mt-3" id="row_data_container" style="display:none;">
+                              <p class="label label-alert">New Row Data</p>
+                              <div class="d-flex flex-wrap bg-light" id="input_data_container">
+                              </div>
+                            </div>
+
+
+
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-danger" id="delete_selected_row" data-dismiss="modal">Delete Full Row</button>
+                        </div>
+
+                </div>
+                <!-- /.modal-content -->
+            </div>
+            <!-- /.modal-dialog -->
+        </div>
+        <!-- /.modal -->
+
+        <!-- /.modal -->
+
+        <div class="modal fade" id="modal-upload-excel">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Upload Excel Sheet</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form method=post enctype="multipart/form-data" action="{{url_for('upload_file')}}">
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label>Select a excel file</label>
+                                <input type="file" class="form-control" id="modal_upload_pci" name="file" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer justify-content-between">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                            <button type="submit" class="">Submit upload</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- /.modal-content -->
+            </div>
+            <!-- /.modal-dialog -->
+        </div>
+        <!-- /.modal -->
+
+        {% include "partials/footer.html" %}
+    </div>
+    <!-- ./wrapper -->
+    {% include "partials/foot.html" %}
+    <script>
+      /* Global vars */
+
+      /* Helper variables */
+      const ajaxMessageContainer = document.querySelector("#ajax_error_label");
+      const ajaxMessageContent = document.querySelector("#error_message");
+      const defaultOptionSelect = '<option value="none">Select a worksheet</option>';
+      const modelInsertInputsContainer = document.querySelector("#row_data_container");
+      const modelInsertInputsHtml = document.querySelector("#input_data_container");
+      const modelInsertBeforeInput = document.querySelector("#insert_row_before");
+      const modelInsertAfterInput = document.querySelector("#insert_row_after");
+      const togglerButton = document.querySelector("#toggler_button");
+      const togglerI = document.querySelector("#toggler_i");
+      let currentTitlesList = [];
+
+      let modelInputsToggler = 1;
+
+      /* Sheets and files selectboxes and buttons */
+      const selectFileBtn = document.querySelector("#select_excelfile_btn");
+      const selectFileSelectBox = document.querySelector("#file_select");
+      const worksheetBtn = document.querySelector("#render_worksheet_btn");
+      const worksheetSelect = document.querySelector("#worksheet_select");
+
+      /* Table Vars*/
+      const tableCardContainer = document.querySelector("#table_card_container");
+      const sheetTableTitle = document.querySelector("#sheet_id_title");
+      const paginationPerPage = 5;
+      const pagBtnsLimit = 5;
+
+
+      /* Helper functions */
+      function displayErrorMessage(message) {
+        ajaxMessageContainer.style.display = "block";
+        ajaxMessageContent.innerText = message;
+        setTimeout(function(){
+          ajaxMessageContainer.style.display = "none";
+          ajaxMessageContent.innerText = "";
+        }, 5000);
+      }
+
+      function pagRound(num) {
+        let check0 = Number(num);
+        if (isNaN(check0)){
+          return num;
+        }
+        numcheck = num.toFixed(1);
+        const strArCheck1 = numcheck.toString().split(".");
+        if (strArCheck1.length <= 1) {
+          return num;
+        }
+        const numStrArCheck2 = numcheck.toString().split(".");
+        const numExtension = Number(numStrArCheck2[1]);
+        if (isNaN(numExtension)){
+          return num.toFixed();
+        }
+        if (numExtension == 0) {
+          return num.toFixed();
+        }
+        if (numExtension > 0) {
+          return Number(numStrArCheck2[0]) + 1;
+        }
+      };
+
+      const sendPostRequest = async (url, data = {}) => {
+        const response = await fetch (url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data),
+        });
+        try {
+          //const newData = await response;
+          return response;
+        } catch(error) {
+          console.log("error", error);
+          // appropriately handle the error
+        }
+      };
+
+      /* function to empty any list of inputs */
+      const emptyTheseInputsList = ( (inputList)=> {
+        if (inputList.length == 0) {return false;}
+        for (var i=0; i < inputList.length; i++) {
+          if (inputList[i].value.trim() != ""){
+            inputList[i].value = "";
+          } else {
+            continue;
+          }
+        }
+        return true;
+      });
+
+      const showAndHideInputs = ()=> {
+        if (modelInputsToggler == 1) {
+          modelInputsToggler = 0;
+          modelInsertInputsContainer.style.display = "block";
+          if (modelInsertBeforeInput.classList.contains("disabled")) {modelInsertBeforeInput.classList.remove("disabled");}
+          if (modelInsertAfterInput.classList.contains("disabled")) {modelInsertAfterInput.classList.remove("disabled");}
+          if (togglerI.classList.contains("fa-eye")) {togglerI.classList.remove("fa-eye");}
+          if (!togglerI.classList.contains("fa-eye-slash")) {togglerI.classList.add("fa-eye-slash");}
+          return true;
+        } else {
+          modelInputsToggler = 1;
+          modelInsertInputsContainer.style.display = "none";
+          if (!modelInsertBeforeInput.classList.contains("disabled")) {modelInsertBeforeInput.classList.add("disabled");}
+          if (!modelInsertAfterInput.classList.contains("disabled")) {modelInsertAfterInput.classList.add("disabled");}
+          if (!togglerI.classList.contains("fa-eye")) {togglerI.classList.add("fa-eye");}
+          if (togglerI.classList.contains("fa-eye-slash")) {togglerI.classList.remove("fa-eye-slash");}
+          return true;
+        }
+        return false;
+      };
+      togglerButton.addEventListener("click", showAndHideInputs);
+
+
+
+      /* Helper end */
+
+      /* Request to File and display all sheets within it */
+      /* displayOptions will create new options for each worksheet for the givin file and display it  */
+      const displayOptions = (data, message)=> {
+        if (data.length > 0){
+          const documentFragment = document.createDocumentFragment();
+
+          data.forEach( (option)=> {
+            let newOption = document.createElement("option");
+            newOption.value = option.id;
+            newOption.title = "System path: " + option.path;
+            newOption.innerText = `${option.name} (${option.filename})`;
+            documentFragment.appendChild(newOption);
+          });
+          worksheetSelect.appendChild(documentFragment);
+          worksheetSelect.options[1].selected = "true"
+          return true;
+        } else {
+          displayErrorMessage(excelSheetsData.message);
+          return false;
+        }
+      };
+
+      /* Toolbar variables */
+      const modelCellTitlte = document.getElementById("model_column_title");
+      const modelCelldimension = document.getElementById("row_dimension");
+      const modelCellEditValue = document.getElementById("py_editcell");
+      const modelSubmitEdit = document.getElementById("toolbar_submit_btn");
+      const modelDeleteRowSubmit = document.getElementById("delete_selected_row");
+
+
+
+
+      /* Function to show Edit Menu  */
+      function createSlideMenu(event) {
+
+        let rowdbId = event.target.getAttribute("data-row-dbid");
+        let trRow = document.querySelector(`tr[data-dbid='${rowdbId}']`);
+        let cellColumnTitle = event.target.getAttribute("data-column-title");
+        let cellRowOrder = event.target.getAttribute("data-row-order");
+        let cellOrder = event.target.getAttribute("data-cell-order");
+        let cellValue = event.target.getAttribute("data-value");
+        let cellDbTable = event.target.getAttribute("data-dbtable");
+        let cellId = event.target.getAttribute("id");
+        let currentPage = event.target.getAttribute("data-current-page");
+        let cellsheetId = event.target.getAttribute("data-sheet-id");
+
+        emptyTheseInputsList(document.querySelectorAll(".insert_input"));
+        if (!trRow) {return false;}
+        modelCellTitlte.innerText = cellColumnTitle;
+        modelCelldimension.innerText = `[ row:${cellRowOrder} , cell:${cellOrder} ]`;
+        modelCellEditValue.value = cellValue;
+        modelCellEditValue.setAttribute("row-dbid", rowdbId);
+        modelCellEditValue.setAttribute("cell-column-title", cellColumnTitle);
+        modelCellEditValue.setAttribute("data-dbtable", cellDbTable);
+        modelCellEditValue.setAttribute("data-cell-id", cellId);
+        modelCellEditValue.setAttribute("data-current-page", currentPage);
+        modelCellEditValue.setAttribute("data-sheet-id", cellsheetId);
+
+
+      }
+
+
+      /* updateCell Function */
+      modelSubmitEdit.addEventListener("click", updateCellValue);
+      async function updateCellValue () {
+        const cellValue = modelCellEditValue.value;
+        const rowDbId = modelCellEditValue.getAttribute("row-dbid");
+        const columnTitle = modelCellEditValue.getAttribute("cell-column-title");
+        const cellTableName = modelCellEditValue.getAttribute("data-dbtable");
+        const dataCellId = modelCellEditValue.getAttribute("data-cell-id");
+        const cellElement = document.querySelector(`#${dataCellId}`);
+        /* Client Side Check */
+        if (!rowDbId || rowDbId.trim() == "") {return false;}
+        if (!columnTitle || columnTitle.trim() == "") {return false;}
+        if (!cellTableName || cellTableName.trim() == "") {return false;}
+        if (!cellElement) {return false;}
+        /* Note the customer maybe need make the value empty */
+        const updateRequestData = {id: rowDbId, column: columnTitle, value: cellValue, table: cellTableName};
+        const editRes = await sendPostRequest('/update_cell', updateRequestData);
+        const result = await editRes.json();
+        if (result.code != 200) {/* show error */ return false;}
+
+        let updatedValue = result.value;
+        cellElement.innerText = updatedValue;
+      }
+
+      async function deleteRowFunction() {
+        const rowDbId = modelCellEditValue.getAttribute("row-dbid");
+        const rowHTML = document.querySelector(`#row_${rowDbId}`);
+        const rowTableName = modelCellEditValue.getAttribute("data-dbtable");
+
+        if (!rowHTML) { return false; }
+        if (!rowTableName || rowTableName.trim() == "") {return false;}
+        if (!rowDbId || rowDbId.trim() == "") {return false;}
+        const deleteRequestData = {id: rowDbId, table: rowTableName};
+        const deleteRes = await sendPostRequest('/delete_row', deleteRequestData);
+        const deleteResult = await deleteRes.json();
+
+        if (deleteResult.code != 200) {/* show error  */ return false;}
+        rowHTML.remove();
+        return true;
+      }
+      /* Delete Row Function */
+      modelDeleteRowSubmit.addEventListener("click", deleteRowFunction);
+
+      /* Insert row after function */
+      async function insertRowAfter(event){
+        if (event.target.classList.contains("disabled")){return false;}
+        const currentRowid = modelCellEditValue.getAttribute("row-dbid");
+        const currentTableName = modelCellEditValue.getAttribute("data-dbtable");
+        let currentPage = modelCellEditValue.getAttribute("data-current-page");
+        const allInsertInputsValues = document.querySelectorAll("input.insert_input");
+        const currentSheetid = modelCellEditValue.getAttribute("data-sheet-id");
+
+        if (currentTitlesList.length == 0){return false;}
+        if (!currentRowid || currentRowid.trim() == "") {return false;}
+        if (!currentTableName || currentTableName.trim() == "") {return false;}
+        if (!allInsertInputsValues || allInsertInputsValues.length == 0) {return false;}
+        const futureRowId =  Number(currentRowid) + 1;
+        let cell_values = [];
+        /* ID not listed in inputs but listed in titles */
+        cell_values.push(futureRowId);
+        allInsertInputsValues.forEach( (iInput)=> {
+          cell_values.push(iInput.value);
+        });
+        insertAfterData = {tablename: currentTableName, current_id: currentRowid, column_names: currentTitlesList, values: cell_values};
+        const insertAfterRes = await sendPostRequest('/insert_row_after', insertAfterData);
+        const insertAfterResult = await insertAfterRes.json();
+        if (insertAfterResult.code != 200) {/* show error */ return false;}
+        if (!currentPage || currentPage.trim() == ""){return false;}
+        currentPage = Number(currentPage);
+        renderExcelSheet(event, pag=currentPage, recall=currentSheetid);
+
+      }
+      modelInsertAfterInput.addEventListener( "click", insertRowAfter);
+
+      /* Function will Send A get request that contais file id to get the sheets and call the  displayOptions above */
+      async function getFileSheets() {
+        const fileId = selectFileSelectBox.value;
+        worksheetSelect.innerHTML = defaultOptionSelect;
+        if (fileId == 'none') { displayErrorMessage("Please select a file");
+          return false;
+       }
+        /* Send A request to get the sheets */
+        const res = await fetch(`/getsheets/${fileId}`);
+        const excelSheetsData = await res.json();
+        if (excelSheetsData.code != 200){
+          displayErrorMessage(excelSheetsData.message);
+        } else {
+          displayOptions(excelSheetsData.data, excelSheetsData.message);
+        }
+      }
+      selectFileBtn.addEventListener( "click", getFileSheets );
+      /* display Worksheet options end */
+
+
+     /* Render table Code */
+     async function renderExcelSheet(event, pag=1, recall=false) {
+
+
+       tableCardContainer.innerHTML = "";
+       sheetTableTitle.innerHTML = "";
+       let sheet_id = worksheetSelect.value;
+       if (recall != false){
+          sheet_id = recall;
+       }
+       if (sheet_id == "none"){
+         displayErrorMessage("Please select a sheet");
+         return false;
+       }
+       const sheetResponse = await fetch(`/table_data/${sheet_id}/${pag}`);
+       const sheetData = await sheetResponse.json();
+       if (sheetData.code != 200){
+         displayErrorMessage(sheetData.message);
+         return false;
+       }
+       console.log(sheetData);
+       sheetTableTitle.innerHTML = sheetData.name;
+
+       currentTitlesList = sheetData.data.titles;
+       // pag
+       totalPages = pagRound(sheetData.total/paginationPerPage);
+       const inputsFragment = document.createDocumentFragment();
+
+       let tableTemplate = `                                          <div class="table-responsive">
+                                                                <div id="users_table_wrapper" class="dataTables_wrapper dt-bootstrap4 no-footer">
+                                                                   <div class="row">
+                                                                      <div class="col-sm-12 col-md-6">
+                                                                         <div class="dataTables_length" id="users_table_length">
+                                                                            <label>
+                                                                               Show
+                                                                               <select name="users_table_length" aria-controls="users_table" class="custom-select custom-select-sm form-control form-control-sm">
+                                                                                  <option value="10">10</option>
+                                                                                  <option value="25">25</option>
+                                                                                  <option value="50">50</option>
+                                                                                  <option value="100">100</option>
+                                                                               </select>
+                                                                               entries
+                                                                            </label>
+                                                                         </div>
+                                                                      </div>
+                                                                      <div class="col-sm-12 col-md-6">
+                                                                         <div id="users_table_filter" class="dataTables_filter"><label>Search:<input type="search" class="form-control form-control-sm" placeholder="" aria-controls="users_table"></label></div>
+                                                                      </div>
+                                                                   </div>
+                                                                   <div class="row">
+                                                                      <div class="col-sm-12">
+                                                                         <table id="users_table" class="table table-bordered table-striped text-center dataTable no-footer" role="grid" aria-describedby="users_table_info">
+                                                                            <thead>
+                                                                            <tr role="row">
+
+                                                                                `;
+
+
+
+
+      sheetData.data.titles.forEach( (title, index)=> {
+        const titlesRow = `<th class="sorting_asc" data-value="${title}" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="ID: activate to sort column descending" id="title_${index}" style="width: 107.75px;">${title}</th>`;
+        tableTemplate += titlesRow;
+        if (index != 0) {
+          let newInputContainer = document.createElement("div");
+          let newInputElm = document.createElement("input");
+          newInputContainer.classList.add("p-2", "border");
+          newInputElm.classList.add("form-control", "insert_input");
+          newInputElm.setAttribute("placeholder", `Enter ${title}`);
+          newInputContainer.appendChild(newInputElm);
+          inputsFragment.appendChild(newInputContainer);
+        }
+      });
+      modelInsertInputsHtml.innerHTML = "";
+      modelInsertInputsHtml.appendChild(inputsFragment)
+
+
+
+      tableTemplate += `</tr></thead>`;
+
+      //even
+      let rowValues = '<tbody>'
+      sheetData.data.rows.forEach( (row, index)=> {
+        let rowClass = (index % 2 == 0) ? 'even' : 'odd';
+        rowValues += `<tr data-dbid="${row[0]}" id="row_${row[0]}" role="row" class="${rowClass}">`;
+            row.forEach( (cell, cellindex)=> {  rowValues += `<td class="sorting_1 cell_class cell_for_sidemenu" data-row-dbid="${row[0]}" data-value="${cell}" data-toggle="modal" data-target="#toolbar_model" data-row-order="${index}" data-cell-order="${cellindex}" data-dbtable="${sheetData.table}" data-column-title="${sheetData.data.titles[cellindex]}" data-current-page="${pag}" id="cell_${row[0]}_${cellindex}" data-sheet-id="${sheet_id}">${cell}</td>` });
+        rowValues += '</tr>';
+      });
+
+     tableTemplate += rowValues + "</tbody>";
+
+     let tableTail = `
+
+                                                                         </table>
+                                                                      </div>
+                                                                   </div>
+                                                                   <div class="row">
+                                                                      <div class="col-sm-12 col-md-5">
+                                                                         <div class="dataTables_info" id="users_table_info" role="status" aria-live="polite">Showing 1 to 2 of 2 entries</div>
+                                                                      </div>
+                                                                      <div class="col-sm-12 col-md-7">
+                                                                         <div class="dataTables_paginate paging_simple_numbers" id="users_table_paginate">
+                                                                            <ul class="pagination">
+
+                                                                            `;
+     let btnsMax = pagRound(pag/pagBtnsLimit) * pagBtnsLimit;
+
+     let btnsMin = (btnsMax - pagBtnsLimit) +1;
+
+     let nextPage = btnsMax < totalPages ? btnsMax+1 : btnsMax;
+     let previousPage = btnsMin > pagBtnsLimit ? btnsMin - 1 : btnsMin;
+
+     if (btnsMin > pagBtnsLimit) {
+         tableTail += `<li data-sheet-id="${sheet_id}" class="paginate_button page-item previous" data-next-page="${nextPage}" data-btns-min="${btnsMin}"  data-btns-max="${btnsMax}" data-page="${pag}" data-total="${totalPages}" data-previous-page="${previousPage}" id="sheet_table_previous"><a href="#" aria-controls="users_table" data-dt-idx="0" tabindex="0" class="page-link">Previous</a></li>`;
+    } else {
+         tableTail += `<li data-sheet-id="${sheet_id}" class="paginate_button page-item previous disabled" id="sheet_table_previous"><a href="#" aria-controls="users_table" data-dt-idx="${previousPage}" tabindex="0" class="page-link">Previous</a></li>`;
+    }
+     for (var i=0; i<totalPages; i++){
+        let currentPage = i+1;
+
+        let shownBtnsDisplay = (currentPage >= btnsMin &&  currentPage <= btnsMax) ? 'inline' : 'none';
+        if (currentPage==pag){
+          tableTail += `<li data-sheet-id="${sheet_id}" data-value="${currentPage}" style="cursor:pointer;" class="paginate_button page-item active paginate_numric_button"><a aria-controls="users_table" data-dt-idx="${currentPage}" tabindex="0" data-sheet-id="${sheet_id}" data-value="${currentPage}" class="page-link pag_button">${currentPage}</a></li>`;
+        } else {
+          tableTail += `<li data-sheet-id="${sheet_id}" data-value="${currentPage}" style="display:${shownBtnsDisplay};cursor:pointer;" class="paginate_button page-item paginate_numric_button"><a aria-controls="users_table" data-dt-idx="${currentPage}" data-sheet-id="${sheet_id}" data-value="${currentPage}" tabindex="0" class="page-link pag_button">${currentPage}</a></li>`;
+        }
+     };
+//(newBtnMax + 1) >= dataTotal
+//totalPages/pagBtnsLimit > 1
+     if (btnsMax + 1 < totalPages) {
+        tableTail += `<li data-sheet-id="${sheet_id}" data-btns-max="${btnsMax}" data-page="${pag}" data-total="${totalPages}" data-next-page="${nextPage}" class="paginate_button page-item next" id="sheets_table_next"><a href="#" aria-controls="users_table" data-dt-idx="${nextPage}" tabindex="0" class="page-link">Next</a></li>`;
+     } else {
+        tableTail += `<li data-sheet-id="${sheet_id}" class="paginate_button page-item next disabled" id="sheets_table_next"><a href="#" aria-controls="users_table" data-dt-idx="2" tabindex="0" class="page-link">Next</a></li>`;
+     }
+     tableTail += `
+
+                                                                            </ul>
+                                                                         </div>
+                                                                      </div>
+                                                                   </div>
+                                                                </div>
+                                                             </div>
+                                                             `;
+        tableTemplate += tableTail;
+        let newCardBody = document.createElement("div");
+        newCardBody.classList.add("card-body");
+        newCardBody.innerHTML = tableTemplate;
+        tableCardContainer.appendChild(newCardBody);
+
+        /* Function for Single Pag Btn number */
+        let allPagenteBtns = document.querySelectorAll("li.paginate_numric_button");
+        allPagenteBtns.forEach( (pagBtn)=> {
+          pagBtn.addEventListener("click", (event)=> {
+            if (event.target.classList.contains("active")) {
+              return false;
+            }
+            let theSheetId = Number(event.target.getAttribute("data-sheet-id"));
+            let targetPage = Number(event.target.getAttribute("data-value"));
+            renderExcelSheet(event, pag=targetPage, recall=theSheetId);
+          });
+        });
+
+        /* add event listener for create cell sidemenu */
+        let allTableCells = document.querySelectorAll(".cell_for_sidemenu");
+        allTableCells.forEach( (tCell)=> {
+          /* Event Listener for hover */
+          tCell.addEventListener("click", createSlideMenu);
+        });
+
+        /* Function for next*/
+        let nextPagenationGroupBtn = document.querySelector("#sheets_table_next");
+        let PreviousGroupBtn = document.querySelector("#sheet_table_previous");
+        nextPagenationGroupBtn.addEventListener("click", (event)=> {
+          let dataNextPage = Number(nextPagenationGroupBtn.getAttribute("data-next-page"));
+          let dataPage = Number(nextPagenationGroupBtn.getAttribute("data-page"));
+          let dataTotal = Number(nextPagenationGroupBtn.getAttribute("data-total"));
+          let dataBtnMax = Number(nextPagenationGroupBtn.getAttribute("data-btns-max"));
+          let dataSheetId = Number(nextPagenationGroupBtn.getAttribute("data-sheet-id"));
+
+          let dataBtnMin = (dataBtnMax - pagBtnsLimit) + 1;
+          let allNumbricBtns = document.querySelectorAll(".paginate_numric_button");
+          if (dataNextPage<dataTotal){
+            let newBtnMax = dataBtnMax + pagBtnsLimit;
+            let newBtnMin = (newBtnMax - pagBtnsLimit) + 1;
+            let newNextPage = pagBtnsLimit + dataNextPage;
+
+            nextPagenationGroupBtn.setAttribute("data-next-page", newNextPage);
+            nextPagenationGroupBtn.setAttribute("data-btns-max", newBtnMax);
+
+            PreviousGroupBtn.setAttribute("data-previous-page", newBtnMin-1);
+            PreviousGroupBtn.setAttribute("data-btns-max", newBtnMax);
+            PreviousGroupBtn.setAttribute("data-btns-min", newBtnMin);
+            PreviousGroupBtn.setAttribute("data-next-page", newNextPage);
+
+
+            if (PreviousGroupBtn.classList.contains("disabled")){
+               PreviousGroupBtn.classList.remove("disabled");
+            }
+
+            alert( newBtnMax + "newbtn   total" + dataTotal);
+            if ((newBtnMax + 1) >= dataTotal) {
+
+              if (!nextPagenationGroupBtn.classList.contains("disabled")){
+                 nextPagenationGroupBtn.classList.add("disabled");
+              }
+            }
+
+            allNumbricBtns.forEach( (numBtn, index)=> {
+              let currentIndex = index + 1;
+              if (dataNextPage == currentIndex) {
+                if (!numBtn.classList.contains("active")){
+                  numBtn.classList.add("active");
+                }
+              }
+
+
+              if (currentIndex >= newBtnMin && currentIndex <= newBtnMax){
+                numBtn.style.display = "block";
+              } else {
+                numBtn.style.display = "none";
+              }
+
+            });
+            renderExcelSheet(event, pag=dataNextPage, recall=dataSheetId);
+          } else {
+            if (!nextPagenationGroupBtn.classList.contains("disabled")){
+               nextPagenationGroupBtn.classList.add("disabled");
+            }
+            return false;
+          }
+        });
+
+
+
+        /* Function for previous */
+
+          PreviousGroupBtn.addEventListener("click", (event)=> {
+          let dataPreviousPage = Number(PreviousGroupBtn.getAttribute("data-previous-page"));
+          let dataNextPage = Number(PreviousGroupBtn.getAttribute("data-next-page"));
+          let dataPage = Number(PreviousGroupBtn.getAttribute("data-page"));
+          let dataTotal = Number(PreviousGroupBtn.getAttribute("data-total"));
+          let dataBtnMax = Number(PreviousGroupBtn.getAttribute("data-btns-max"));
+          let dataBtnMin = Number(PreviousGroupBtn.getAttribute("data-btns-min"));
+          let pDataSheetId = Number(PreviousGroupBtn.getAttribute("data-sheet-id"));
+
+          //let dataBtnMin = (dataBtnMax - pagBtnsLimit) + 1;
+          let allNumbricBtns = document.querySelectorAll(".paginate_numric_button");
+
+          if (dataPreviousPage>=pagBtnsLimit){
+
+            let newBtnMax = dataBtnMax - pagBtnsLimit;
+            let newBtnMin = (newBtnMax - pagBtnsLimit) + 1;
+            let newNextPage = dataNextPage - pagBtnsLimit;
+            let newPerviousPage = dataPreviousPage - pagBtnsLimit;
+
+
+            nextPagenationGroupBtn.setAttribute("data-next-page", newNextPage);
+            nextPagenationGroupBtn.setAttribute("data-btns-max", newBtnMax);
+
+            PreviousGroupBtn.setAttribute("data-previous-page", newPerviousPage);
+            PreviousGroupBtn.setAttribute("data-btns-max", newBtnMax);
+            PreviousGroupBtn.setAttribute("data-btns-min", newBtnMin);
+            PreviousGroupBtn.setAttribute("data-next-page", newNextPage);
+
+
+
+            if (nextPagenationGroupBtn.classList.contains("disabled")){
+               nextPagenationGroupBtn.classList.remove("disabled");
+            }
+
+            if (newPerviousPage == 0) {
+              if (!PreviousGroupBtn.classList.contains("disabled")){
+                 PreviousGroupBtn.classList.add("disabled");
+              }
+            }
+
+
+            allNumbricBtns.forEach( (numBtn, index)=> {
+              let currentIndex = index + 1;
+              if (newBtnMax == currentIndex) {
+                if (!numBtn.classList.contains("active")){
+                  numBtn.classList.add("active");
+                }
+              } else {
+                if (numBtn.classList.contains("active")){
+                  numBtn.classList.remove("active");
+                }
+              }
+
+              if (currentIndex >= newBtnMin && currentIndex <= newBtnMax){
+                numBtn.style.display = "block";
+              } else {
+                numBtn.style.display = "none";
+              }
+
+            });
+
+            renderExcelSheet(event, pag=dataPreviousPage, recall=pDataSheetId)
+          } else {
+
+            if (!PreviousGroupBtn.classList.contains("disabled")){
+               PreviousGroupBtn.classList.add("disabled");
+            }
+            return false;
+          }
+        });
+
+
+     }
+     worksheetBtn.addEventListener( "click", renderExcelSheet);
+
+    </script>
+</body>
+
+</html>
