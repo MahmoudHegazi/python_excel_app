@@ -575,13 +575,17 @@ def insertRowAfter(tablename, current_id, column_names, values):
         for i_cname in range(len(column_names)):
             if i_cname == len(column_names)-1:
                 insertNewRowString += str(column_names[i_cname]) + ") VALUES("
+            elif i_cname == 0:
+                continue
             else:
                 insertNewRowString += str(column_names[i_cname]) + ", "
         for i_cvalue in range(len(values)):
             if i_cvalue == 0:
-                insertNewRowString += str(values[i_cvalue]) + ", "
+                continue
             elif i_cvalue == len(values)-1:
                 insertNewRowString += "'" + values[i_cvalue] + "');"
             else:
                 insertNewRowString += "'" + values[i_cvalue] + "', "
-        cursor.execute(insertNewRowString)        
+        cursor.execute(insertNewRowString)
+        return True
+    return False
