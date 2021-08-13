@@ -370,6 +370,7 @@ def get_value_by_key_from_dict(key, dictionary):
                     yield result
 
 # Inventory Code 8/9/2021
+
 def filterVar(string):
     string = string.replace(' ','_')
     string = string.replace('-','_')
@@ -425,3 +426,255 @@ def returnWorksheetsList():
         sheets_list = []
 
     return sheets_list
+
+
+
+# This function returns all worksheets of a given file
+def returnSheetsForGivinFile(fileid):
+    sheets_list = []
+    try:
+        selectSheetsString = "SELECT id, file_id, file_name, sheet_name, file_path FROM worksheets WHERE file_id=%s ORDER BY id DESC;"%fileid
+        selectSheetsQuery = cursor.execute(selectSheetsString);
+        selectSheetsResult = cursor.fetchall()
+        sheets_list = [{'id': sheet[0], 'file_id': sheet[1], 'filename': sheet[2], 'name': sheet[3], 'path': sheet[4]} for sheet in selectSheetsResult]
+    except:
+        sheets_list = []
+    return sheets_list
+
+
+# This function returns worksheets of a given id
+def returnSheetForGivinId(sheetid, requestOffset, perPage, page, order_column, order_type, download=False):
+    sheet_data = {'sheet_list': [], 'columns': [], 'total':0, 'name':'', 'table': ''}
+    page = page
+    #, order_column, order_type
+
+    try:
+        selectSheetsString = "SELECT sheet_name, columns, real_name FROM worksheets WHERE id=%s;"%sheetid
+        selectSheetsQuery = cursor.execute(selectSheetsString);
+        selectSheetsResult = cursor.fetchone()
+    except:
+        return sheet_data
+
+    if selectSheetsResult == None:
+        return sheet_data
+
+    tableName = selectSheetsResult[0]
+
+
+    try:
+        if download == False:
+            selectTableString = "SELECT * FROM %s ORDER BY %s %s OFFSET %s LIMIT %s;"%(tableName, order_column, order_type, requestOffset, perPage)
+        else:
+            selectTableString = "SELECT * FROM %s ORDER BY %s %s;"%(tableName, order_column, order_type)
+
+        selectTableQuery = cursor.execute(selectTableString)
+        selectTableResult = cursor.fetchall()
+        sheet_data['sheet_list'] = selectTableResult
+        selectCountString = "SELECT COUNT(id) FROM %s;"%tableName
+        selectCountQuery = cursor.execute(selectCountString)
+        selectCountResult = cursor.fetchone()
+    except:
+        return sheet_data
+
+    if selectTableResult != None:
+        try:
+            columnsList = selectSheetsResult[1].split(',')
+            sheet_data['sheet_list'] = selectTableResult
+            sheet_data['columns'].append('id')
+            for col in columnsList:
+                sheet_data['columns'].append(col)
+            sheet_data['total'] = selectCountResult[0]
+            sheet_data['name'] = selectSheetsResult[2]
+            sheet_data['table'] = selectSheetsResult[0]
+
+            return sheet_data
+        except:
+            sheet_data = {'sheet_list': [], 'columns': [], 'total':0, 'name':''}
+            return sheet_data
+    else:
+        return sheet_data
+
+    return sheet_data
+
+
+# this function will update selected cell from the created table
+def updateThisCell(tablename, columnname, newvalue, rowid):
+    cellid = None
+    try:
+        updateCellString = "UPDATE %s SET %s = '%s' WHERE id=%s RETURNING %s;"%(tablename, columnname, newvalue, rowid, columnname)
+        updateCellQuery = cursor.execute(updateCellString);
+        updateCellResult = cursor.fetchone()
+        cellid = updateCellResult[0]
+        return cellid
+    except:
+        cellid = None
+
+    return cellid
+
+
+# this function will Delete selected Row from the created table
+def deleteThisRow(tablename, rowid):
+    success = None
+    try:
+        deleteRowString = "DELETE FROM %s WHERE id = %s;"%(tablename, rowid)
+        deleteRowQuery = cursor.execute(deleteRowString);
+        success = True
+    except:
+        success = None
+
+    return success
+
+
+# this function will handle Insert after
+def insertRowAfter(tablename, current_id, column_names, values):
+    # 1- create squence 2- set val with always last id 3- repeat the steps for each row go back to setval and get updated value
+
+    lastIdString = "select max(id) from %s;"%tablename
+    lastIdQuery = cursor.execute(lastIdString)
+    lastIdResult = cursor.fetchone()
+    lastId = lastIdResult[0]
+    futureOrder = int(current_id) + 1
+    newUpdateMax = 2 + int(current_id)
+    # first step move all rows that bigger than target new id eg : new value should be in 6 any thing > 6 moved starting from max id
+    # this will make the id after the current row empty
+
+    tempDropString = "DROP SEQUENCE IF EXISTS seq_upd";
+    tempDropString1 = "DROP SEQUENCE IF EXISTS seq_two";
+    cursor.execute(tempDropString)
+    cursor.execute(tempDropString1)
+
+    if int(current_id) != lastId:
+        temporarySquence1 = "create temporary sequence IF NOT EXISTS seq_upd;"
+        temporarySquence01 = "select setval('seq_upd', (select max(id) from %s) + %s);"%(tablename, newUpdateMax)
+        temporarySquence001 = "update %s set id=nextval('seq_upd') where id>%s;"%(tablename, int(current_id))
+        cursor.execute(temporarySquence1)
+        cursor.execute(temporarySquence01)
+        cursor.execute(temporarySquence001)
+
+        # insert new value after current row eg 7 set the id as futrue id which is current + 1
+        insertNewRowString = "INSERT INTO %s ("%tablename
+        for i_cname in range(len(column_names)):
+            if i_cname == len(column_names)-1:
+                insertNewRowString += str(column_names[i_cname]) + ") VALUES("
+            else:
+                insertNewRowString += str(column_names[i_cname]) + ", "
+        for i_cvalue in range(len(values)):
+            if i_cvalue == 0:
+                insertNewRowString += str(values[i_cvalue]) + ", "
+            elif i_cvalue == len(values)-1:
+                insertNewRowString += "'" + values[i_cvalue] + "');"
+            else:
+                insertNewRowString += "'" + values[i_cvalue] + "', "
+        cursor.execute(insertNewRowString)
+
+
+        # last step back the group to the new sequence any item > futre id
+        temporarySquence2 = "create temporary sequence IF NOT EXISTS seq_two;"
+        temporarySquence02 = "select setval('seq_two', %s, false);"%newUpdateMax
+        temporarySquence002 = "update %s set id=nextval('seq_two') where id>%s;"%(tablename, futureOrder)
+        cursor.execute(temporarySquence2)
+        cursor.execute(temporarySquence02)
+        cursor.execute(temporarySquence002)
+        return True
+    else:
+        # insert new value after current row eg 7 set the id as futrue id which is current + 1
+        insertNewRowString = "INSERT INTO %s ("%tablename
+        for i_cname in range(len(column_names)):
+            if i_cname == len(column_names)-1:
+                insertNewRowString += str(column_names[i_cname]) + ") VALUES("
+            elif i_cname == 0:
+                continue
+            else:
+                insertNewRowString += str(column_names[i_cname]) + ", "
+        for i_cvalue in range(len(values)):
+            if i_cvalue == 0:
+                continue
+            elif i_cvalue == len(values)-1:
+                insertNewRowString += "'" + values[i_cvalue] + "');"
+            else:
+                insertNewRowString += "'" + values[i_cvalue] + "', "
+        cursor.execute(insertNewRowString)
+        return True
+    return False
+
+
+
+# this function will handle Insert after
+def insertRowBefore(tablename, current_id, column_names, values):
+    # 1- create squence 2- set val with always last id 3- repeat the steps for each row go back to setval and get updated value
+    try:
+        lastIdString = "select max(id) from %s;"%tablename
+        lastIdQuery = cursor.execute(lastIdString)
+        lastIdResult = cursor.fetchone()
+        lastId = lastIdResult[0]
+        futureOrder = int(current_id)
+        newUpdateMax = 1 + int(current_id)
+        # first step move all rows that bigger than target new id eg : new value should be in 6 any thing > 6 moved starting from max id
+        # this will make the id after the current row empty
+        tempDropString = "DROP SEQUENCE IF EXISTS seq_downone";
+        tempDropString1 = "DROP SEQUENCE IF EXISTS seq_downtwo";
+        cursor.execute(tempDropString)
+        cursor.execute(tempDropString1)
+        temporarySquence3 = "create temporary sequence IF NOT EXISTS seq_downone;"
+        temporarySquence03 = "select setval('seq_downone', (select max(id) from %s) + %s);"%(tablename, newUpdateMax)
+        temporarySquence003 = "update %s set id=nextval('seq_downone') where id>=%s;"%(tablename, int(current_id))
+        cursor.execute(temporarySquence3)
+        cursor.execute(temporarySquence03)
+        cursor.execute(temporarySquence003)
+
+        # insert new value after current row eg 7 set the id as futrue id which is current + 1
+        insertNewRowString = "INSERT INTO %s ("%tablename
+        for i_cname in range(len(column_names)):
+            if i_cname == len(column_names)-1:
+                insertNewRowString += str(column_names[i_cname]) + ") VALUES("
+            else:
+                insertNewRowString += str(column_names[i_cname]) + ", "
+        for i_cvalue in range(len(values)):
+            if i_cvalue == 0:
+                insertNewRowString += str(values[i_cvalue]) + ", "
+            elif i_cvalue == len(values)-1:
+                insertNewRowString += "'" + values[i_cvalue] + "');"
+            else:
+                insertNewRowString += "'" + values[i_cvalue] + "', "
+        cursor.execute(insertNewRowString)
+
+
+        # last step back the group to the new sequence any item > futre id
+        temporarySquence2 = "create temporary sequence IF NOT EXISTS seq_downtwo;"
+        temporarySquence02 = "select setval('seq_downtwo', %s, false);"%newUpdateMax
+        temporarySquence002 = "update %s set id=nextval('seq_downtwo') where id>%s;"%(tablename, newUpdateMax)
+        cursor.execute(temporarySquence2)
+        cursor.execute(temporarySquence02)
+        cursor.execute(temporarySquence002)
+        return True
+    except:
+        return False
+
+
+
+# this function will handle Insert at end
+def insertInto(tablename, column_names, values):
+    # insert new value after current row eg 7 set the id as futrue id which is current + 1
+    lastIdString = "select max(id) from %s;"%tablename
+    lastIdQuery = cursor.execute(lastIdString)
+    lastIdResult = cursor.fetchone()
+    lastId = lastIdResult[0]
+    futureOrder = lastId + 1
+    insertNewRowString = "INSERT INTO %s ("%tablename
+    for i_cname in range(len(column_names)):
+        if i_cname == len(column_names)-1:
+            insertNewRowString += str(column_names[i_cname]) + ") VALUES("
+        elif i_cname == 0:
+            insertNewRowString += "id, "
+        else:
+            insertNewRowString += str(column_names[i_cname]) + ", "
+    for i_cvalue in range(len(values)):
+        if i_cvalue == len(values)-1:
+            insertNewRowString += "'" + values[i_cvalue] + "');"
+        elif i_cvalue == 0:
+            insertNewRowString += str(futureOrder) + ", "
+        else:
+            insertNewRowString += "'" + values[i_cvalue] + "', "
+    cursor.execute(insertNewRowString)
+    return True
+    return False
