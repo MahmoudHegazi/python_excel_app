@@ -6,7 +6,6 @@
     <div class="wrapper">
         {% include "partials/header.html" %}
         {% include "partials/sidebar.html" %}
-
         <!-- Content Wrapper. Contains page content -->
         <div class="content-wrapper">
             <!-- Content Header (Page header) -->
@@ -32,51 +31,63 @@
                                     {% if allfiles %}
                                     <!-- delete file section -->
                                     <!-- Delete File must be form -->
-                                    <form method="post" action="{{url_for('delete_excelfile')}}">
-                                    <div class="form-group">
-                                        <label>Excel Files</label>
-                                        <select class="form-control" name="deleted_file" id="delete_file_select">
-                                            <option value="none">Select a table</option>
-                                            {% for excelfile in allfiles %}
-                                              <option value="{{excelfile.id}}" title="System Path: {{excelfile.path}}">{{excelfile.name}}</option>
-                                            {% endfor %}
-                                        </select>
+
+                                  <form method="post" action="{{url_for('delete_excelfile')}}">
+                                    <label class="mr-sm-2 my-3">Excel Files</label>
+                                    <div class="form-row align-items-center">
+                                         <div class="col-auto my-1 col-8">
+                                           <select class="form-control" name="deleted_file" id="delete_file_select" required="required">
+                                             <option value="none">Select a table</option>
+                                             {% for excelfile in allfiles %}
+                                               <option value="{{excelfile.id}}" title="System Path: {{excelfile.path}}">{{excelfile.name}}</option>
+                                             {% endfor %}
+                                           </select>
+                                         </div>
+                                        <div class="col-auto my-1 col-3">
+                                           <button style="width:100%;" type="submit" class="btn btn-danger" id="delete_file_btn" title="Tip: Delete a file Will delete all the sheets too">Delete</button>
+                                        </div>
                                     </div>
-                                    <div class="form-group text-right">
-                                        <button class="btn btn-danger" id="delete_file_btn" title="Tip: Delete a file Will delete all the sheets too">Delete a Excel File</button>
-                                    </div>
-                                    </form>
+                                  </form>
+
+
+
                                     <!-- delete Sheet section -->
-                                    <form method="post" action="{{url_for('delete_worksheet')}}">
-                                      <div class="form-group">
-                                          <label>Excel Worksheets</label>
-                                          <select class="form-control" name="worksheet_delete" id="delete_worksheet_select" required="required">
-                                              <option value="none">Select a worksheet</option>
-                                              {% if allsheets %}
-                                                {% for worksheet in allsheets %}
-                                                  <option value="{{ worksheet.id }}" title="System Path: {{ worksheet.path }}">{{ worksheet.name }} ({{ worksheet.filename }})</option>
-                                                {% endfor %}
-                                              {% endif %}
-                                          </select>
-                                      </div>
-                                      <div class="form-group text-right">
-                                          <button class="btn btn-danger" type="submit" id="delete_worksheet_btn" title="delete a single worksheet">Delete a worksheet</button>
-                                      </div>
-                                    </form>
-                                    <!-- end not empty part -->
-                                    {% else %}
-                                      <div class="form-group">
-                                          <label>Excel Files</label>
-                                          <select class="form-control" id="delete_file_select">
-                                              <option value="none">Select a table</option>
-                                              {% for table_name in table_names %}
-                                              <option value="{{ table_name[0] }}">{{ table_name[0] }} ({{ table_name[1] }})</option>
-                                              {% endfor %}
-                                          </select>
-                                          <div class="alert alert-secondary">
-                                            <span>There are no Excel files to delete.</span>
+                                      <form method="post" action="{{url_for('delete_worksheet')}}">
+                                      <label class="mr-sm-2 my-3">Excel Worksheets</label>
+                                      <div class="form-row align-items-center">
+                                           <div class="col-auto my-1 col-8">
+                                             <select class="form-control" name="worksheet_delete" id="delete_worksheet_select" required="required">
+                                               <option value="none">Select a worksheet</option>
+                                               {% if allsheets %}
+                                                 {% for worksheet in allsheets %}
+                                                   <option value="{{ worksheet.id }}" title="System Path: {{ worksheet.path }}">{{ worksheet.name }} ({{ worksheet.filename }})</option>
+                                                 {% endfor %}
+                                               {% endif %}
+                                             </select>
+                                           </div>
+                                          <div class="col-auto my-1 col-3">
+                                             <button style="width:100%;" class="btn btn-danger" type="submit" id="delete_worksheet_btn" title="delete a single worksheet">Delete</button>
                                           </div>
                                       </div>
+                                    </form>
+
+
+                                    <!-- end not empty part -->
+                                    {% else %}
+
+                                      <label class="mr-sm-2">Excel Files</label>
+                                      <div class="form-row align-items-center">
+                                         <div class="col-auto my-1 col-8">
+                                           <select class="form-control" id="delete_file_select">
+                                             <option value="none">Select a table</option>
+                                           </select>
+                                         </div>
+                                      </div>
+                                      <div class="alert alert-secondary">
+                                        <span>There are no Excel files to delete.</span>
+                                      </div>
+
+
                                     {% endif %}
                                     <!-- end -->
                                   </div>
@@ -89,6 +100,13 @@
                                     <h3 class="card-title">Excel File Manager</h3>
                                 </div>
                                 <div class="card-body">
+
+                                    <!-- AJAX Errors -->
+                                    <div id="ajax_error_label" style="display:none;" class="alert alert-danger alert-dismissible fade show">
+                                      <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                      <span id="error_message"></span>
+                                    </div>
+
                                     {% with messages = get_flashed_messages(category_filter=["upload"]) %}
                                       {% if messages %}
                                         <div class="alert alert-info alert-dismissible fade show">
@@ -97,30 +115,42 @@
                                         </div>
                                       {% endif %}
                                     {% endwith %}
-                                    <div class="text-right mb-4">
+                                    <div class="text-right mb-1">
                                         <button class="btn btn-warning" onclick="$('#modal-upload-excel').modal('show')">Upload Excel</button>
                                     </div>
-                                    <div>
+                                    <div class="form-group">
                                       {% if allfiles  %}
-                                        <label>Excel Files</label>
-                                        <select class="form-control" id="file_select">
-                                          <option value="none">Select Excel File</option>
-                                          {% for excelfile in allfiles %}
-                                            <option value="{{excelfile.id}}" title="System Path: {{excelfile.path}}">{{excelfile.name}}</option>
-                                          {% endfor %}
-                                        </select>
-                                        <div class="text-right mb-4">
-                                            <button class="btn btn-success" id="select_excelfile_btn" title="select sheet and click here to show all worksheets in the next Selectbox">Select Excel File</button>
-                                        </div>
 
-                                        <label>WorkSheets</label>
-                                        <select class="form-control" id="worksheet_select">
-                                          <option value="none">Select WorkSheet</option>
-                                        </select>
-                                        <div class="text-right mb-4">
-                                            <button class="btn btn-primary" id="render_worksheet_btn" title="Select the worksheet to be displayed below">View file</button>
-                                        </div>
 
+                                      <label class="mr-sm-2">Excel Files</label>
+                                      <div class="form-row align-items-center">
+                                         <div class="col-auto my-1 col-8">
+                                           <select class="form-control" id="file_select">
+                                             <option value="none">Select Excel File</option>
+                                             {% for excelfile in allfiles %}
+                                               <option value="{{excelfile.id}}" title="System Path: {{excelfile.path}}">{{excelfile.name}}</option>
+                                             {% endfor %}
+                                           </select>
+                                         </div>
+                                        <div class="col-auto my-1 col-3">
+                                           <button style="width:100%;" class="btn btn-success" id="select_excelfile_btn" title="select sheet and click here to show all worksheets in the next Selectbox">Select File</button>
+                                        </div>
+                                      </div>
+
+                                      <label class="mr-sm-2 my-3">WorkSheets</label>
+                                      <div class="form-row align-items-center">
+                                           <div class="col-auto my-1 col-6">
+                                             <select class="form-control" id="worksheet_select">
+                                               <option value="none">Select WorkSheet</option>
+                                             </select>
+                                           </div>
+                                          <div class="col-auto my-1 col-2">
+                                            <input type="number" class="form-control" id="the_pag_perpage" value="10000" placeholder="Page Limit" title="this input control rows per pages you can leave it default 10k">
+                                          </div>
+                                          <div class="col-auto my-1 col-3">
+                                             <button style="width:100%;" class="btn btn-primary" id="render_worksheet_btn" title="Select the worksheet to be displayed below">View file</button>
+                                          </div>
+                                      </div>
 
                                       {% else %}
                                         <select class="form-control" id="ajax_time">
@@ -131,35 +161,6 @@
                                         </div>
                                       {% endif %}
                                     </div>
-                                    <!-- Leave it maybe need
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped" id="pci_table">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width: 10%;">ID</th>
-                                                    <th style="width: 30%;">IP</th>
-                                                    <th style="width: 20%;">Status</th>
-                                                    <th style="width: 40%;">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for db_row in db_rows %}
-                                                <tr>
-                                                    <td class="pci-id">{{ db_row[0] }}</td>
-                                                    <td class="pci-ip">{{ db_row[1] }}</td>
-                                                    <td class="pci-status">{{ db_row[2] }}</td>
-                                                    <td class="pci-actions">
-                                                        <button class="btn btn-warning btn-sm" onclick="openEditModal('{{ db_row[0] }}', '{{ db_row[1] }}', '{{ db_row[2] }}')">edit
-                                                        </button>
-                                                        <button class="btn btn-danger btn-sm" onclick="openRemoveModal('{{ db_row[0] }}', '{{ db_row[1] }}', '{{ db_row[2] }}')">remove
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                  -->
                                 </div>
                             </div>
 
@@ -170,51 +171,14 @@
                         <div class="col-md-11" style="margin-left:auto;margin-right:auto;">
                             <div class="card card-primary">
                                 <div class="card-header">
-                                    <h3 class="card-title">SHOW IP ROUTE VRF ALL</h3>
+                                    <h3 class="card-title">Excel Sheet Editor</h3>
                                 </div>
                                 <!-- table --->
 
                                 <div class="container-fluid">
-                                                <h4 class="m-3">Manage Users</h4>
-                                                <div class="card">
-                                                    <div class="card-body">
-                                                        <div class="table-responsive">
-                                                            <div id="users_table_wrapper" class="dataTables_wrapper dt-bootstrap4 no-footer"><div class="row"><div class="col-sm-12 col-md-6"><div class="dataTables_length" id="users_table_length"><label>Show <select name="users_table_length" aria-controls="users_table" class="custom-select custom-select-sm form-control form-control-sm"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label></div></div><div class="col-sm-12 col-md-6"><div id="users_table_filter" class="dataTables_filter"><label>Search:<input type="search" class="form-control form-control-sm" placeholder="" aria-controls="users_table"></label></div></div></div><div class="row"><div class="col-sm-12"><table id="users_table" class="table table-bordered table-striped text-center dataTable no-footer" role="grid" aria-describedby="users_table_info">
-                                                                <thead>
-                                                                <tr role="row"><th class="sorting_asc" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-sort="ascending" aria-label="ID: activate to sort column descending" style="width: 107.75px;">ID</th><th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending" style="width: 187.406px;">Name</th><th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending" style="width: 400.547px;">Email</th><th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Role: activate to sort column ascending" style="width: 150.438px;">Role</th><th class="sorting" tabindex="0" aria-controls="users_table" rowspan="1" colspan="1" aria-label="Actions: activate to sort column ascending" style="width: 296.859px;">Actions</th></tr>
-                                                                </thead>
-                                                                <tbody>
 
-
-
-
-
-                                                                <tr data-id="10" role="row" class="odd">
-                                                                    <td class="user-id sorting_1">10</td>
-                                                                    <td class="user-name">shashank</td>
-                                                                    <td class="user-email">s@s.com</td>
-
-                                                                        <td class="user-role">Admin</td>
-
-                                                                    <td class="user-action">
-                                                                        <button class="btn btn-warning btn-sm" onclick="openEditUserModal('10')">edit</button>
-                                                                        <button class="btn btn-danger btn-sm" onclick="openRemoveUserModal('10')">remove</button>
-                                                                    </td>
-                                                                </tr><tr data-id="16" role="row" class="even">
-                                                                    <td class="user-id sorting_1">16</td>
-                                                                    <td class="user-name">someone</td>
-                                                                    <td class="user-email">someone@gmail.com</td>
-
-                                                                        <td class="user-role">User</td>
-
-                                                                    <td class="user-action">
-                                                                        <button class="btn btn-warning btn-sm" onclick="openEditUserModal('16')">edit</button>
-                                                                        <button class="btn btn-danger btn-sm" onclick="openRemoveUserModal('16')">remove</button>
-                                                                    </td>
-                                                                </tr></tbody>
-                                                            </table></div></div><div class="row"><div class="col-sm-12 col-md-5"><div class="dataTables_info" id="users_table_info" role="status" aria-live="polite">Showing 1 to 2 of 2 entries</div></div><div class="col-sm-12 col-md-7"><div class="dataTables_paginate paging_simple_numbers" id="users_table_paginate"><ul class="pagination"><li class="paginate_button page-item previous disabled" id="users_table_previous"><a href="#" aria-controls="users_table" data-dt-idx="0" tabindex="0" class="page-link">Previous</a></li><li class="paginate_button page-item active"><a href="#" aria-controls="users_table" data-dt-idx="1" tabindex="0" class="page-link">1</a></li><li class="paginate_button page-item next disabled" id="users_table_next"><a href="#" aria-controls="users_table" data-dt-idx="2" tabindex="0" class="page-link">Next</a></li></ul></div></div></div></div>
-                                                        </div>
-                                                    </div>
+                                                <h4 class="m-3" id="sheet_id_title"></h4>
+                                                <div class="card" id="table_card_container">
                                                 </div>
                                             </div>
                                 <!-- table end -->
@@ -230,33 +194,68 @@
 
         </div>
 
+        <!-- /.modal -->
 
-        <div class="modal fade" id="modal-edit-PCI">
+        <!-- toolbar Model for cells and rows action -->
+
+        <div class="modal fade" id="toolbar_model">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Edit PCI/PII Item</h4>
+                        <h4 class="modal-title" id="model_column_title">Title</h4>
+
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                    <form id="modal-edit-ip-form">
                         <div class="modal-body">
-                            <input type="hidden" id="modal_edit_id">
-                            <div class="form-group">
-                                <label>IP</label>
-                                <input class="form-control" id="modal_edit_ip" required>
+                          <div class="text-center" id="row_dimension"></div>
+
+                            <!-- Update cell part -->
+                            <label class="mr-sm-2">Edit Cell Value</label>
+                            <div class="form-row align-items-center">
+                               <div class="col-auto my-1 col-8">
+                                 <input type="text" id="py_editcell" value="" class="form-control">
+                               </div>
+                              <div class="col-auto my-1 col-3">
+                                <button style="width:100%;" type="button" class="btn btn-success" id="toolbar_submit_btn" data-dismiss="modal">Submit</button>
+                              </div>
                             </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <input class="form-control" id="modal_edit_status" required>
+
+                            <!-- Update cell part -->
+                            <label class="mr-sm-5 my-2">Insert Rows</label>
+                            <div class="form-row align-items-center">
+
+
+                               <div class="col-auto my-1 col-4">
+                                 <button style="width:100%;" type="button" class="btn btn-info disabled" id="insert_row_before">Insert Before</button>
+                               </div>
+                              <div class="col-auto my-1 col-4">
+                                <button style="width:100%;" type="button" class="btn btn-info disabled" id="insert_row_after">Insert After</button>
+                              </div>
+                              <div class="col-auto my-1 col-4">
+                                <button style="width:100%;" type="button" class="btn btn-info disabled" id="insert_row_into">Insert</button>
+                              </div>
+
+                              <div class="col-auto my-1 col-2" style="margin-left:auto;">
+                                <button style="width:100%;" type="button" class="btn btn-secondary" id="toggler_button" title="Click to show insert inputs"><i id="toggler_i" class="fa fa-eye" aria-hidden="true"></i></button>
+                              </div>
                             </div>
+
+                            <div class="container mt-3" id="row_data_container" style="display:none;">
+                              <p class="label label-alert">New Row Data</p>
+                              <div class="d-flex flex-wrap bg-light" id="input_data_container">
+                              </div>
+                            </div>
+
+
+
                         </div>
                         <div class="modal-footer justify-content-between">
-                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-warning">Save Changes</button>
+                            <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-danger" id="delete_selected_row" data-dismiss="modal">Delete Full Row</button>
                         </div>
-                    </form>
+
                 </div>
                 <!-- /.modal-content -->
             </div>
@@ -283,12 +282,13 @@
                             </div>
                         </div>
                         <div class="modal-footer justify-content-between">
-                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                            <button type="submit" class="">Submit upload</button>
+                            <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-success">Submit upload</button>
                         </div>
                     </form>
-                    <!-- br7tak -->
                 </div>
+
+
                 <!-- /.modal-content -->
             </div>
             <!-- /.modal-dialog -->
@@ -299,9 +299,10 @@
     </div>
     <!-- ./wrapper -->
     {% include "partials/foot.html" %}
-    <script>
+    <!-- inventory js code 8/13/2021 lastupdate -->
 
-    </script>
+    <script src="{{url_for('static', filename='main/js/inv.js')}}"></script>
+
 </body>
 
 </html>
